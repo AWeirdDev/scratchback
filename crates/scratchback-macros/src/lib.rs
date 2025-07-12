@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use proc_macro::TokenStream;
 use proc_macro2::{ Ident, TokenTree };
 
-use venial::{ parse_item, Error, Fields, GenericArg, Item };
-use quote::{ quote, ToTokens };
+use venial::{ parse_item, Error, Fields, GenericArg, Item, TypeExpr };
+use quote::quote;
 
 macro_rules! ok_or_rt {
     ($e:expr) => {
@@ -21,7 +21,7 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
     let item = ok_or_rt!(parse_item(input.into()));
 
     match item {
-        Item::Struct(mut st) => {
+        Item::Struct(st) => {
             let Fields::Named(fields) = st.fields else {
                 return Err(Error::new_at_span(st.fields.span(), "Expected named fields"));
             };
@@ -162,7 +162,6 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
                             #(#field_names, )*
                         })
                     }
-
                     /// Serialize this struct instance to a `scratchback`-encoded string.
                     fn sb_encode(self) -> Option<String> {
                         use ::scratchback::encoding::{ SbToString, Encoding };
@@ -180,6 +179,107 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
             };
             Ok(result.into())
         }
+
+        Item::Enum(en) => {
+            let fields = en.variants;
+            let mut map: HashMap<u8, (Ident, TypeExpr)> = HashMap::new();
+
+            for field in fields.items() {
+                for attr in &field.attributes {
+                    let attr_name = &attr.path.last().as_ref().unwrap().to_string();
+                    if attr_name != "id" {
+                        continue;
+                    }
+
+                    let Some(value_token) = attr.get_value_tokens().first() else {
+                        return Err(Error::new_at_span(attr.span(), "Assign an ID: #[id(...)]"));
+                    };
+
+                    let Ok(id) = value_token.to_string().parse::<u8>() else {
+                        return Err(
+                            Error::new_at_span(attr.span(), "Cannot parse into u8 (range: 0-255)")
+                        );
+                    };
+
+                    if map.contains_key(&id) {
+                        return Err(
+                            Error::new_at_span(value_token.span(), "This id already exists")
+                        );
+                    }
+
+                    let Fields::Tuple(t) = &field.fields else {
+                        return Err(
+                            Error::new_at_span(field.fields.span(), "Expected tuple-based fields")
+                        );
+                    };
+                    let tuple_fields = &t.fields.inner;
+                    if tuple_fields.len() > 1 {
+                        return Err(
+                            Error::new_at_span(
+                                field.fields.span(),
+                                "Currently, you can only have one item for a tuple field"
+                            )
+                        );
+                    }
+                    let (tuple_field, _) = tuple_fields.first().unwrap();
+                    map.insert(id, (field.name.clone(), tuple_field.ty.clone()));
+                }
+            }
+
+            let name = en.name;
+            let mut mapped_en_items = Vec::new();
+            let mapped_de_items = map.iter().map(|(k, (variant, typ))| {
+                let k = k.to_string();
+
+                mapped_en_items.push(
+                    quote! {
+                        #k => Self::#variant(#typ::from_sb_encoded(&x)?),
+                    }
+                );
+
+                quote! {
+                    Self::#variant(x) => (x, #k), 
+                }
+            });
+
+            let result =
+                quote! {
+                impl #name {
+                    /// Serialize this enum instance to a `scratchback`-encoded string.
+                    fn sb_encode(self) -> Option<String> {
+                        use ::scratchback::encoding::{ Encoding, EncodingTable };
+
+                        let encoding = Encoding::new();
+
+                        let (st, id) = match self {
+                            #(#mapped_de_items)*
+                        };
+
+                        Some(format!("{}{}{}", encoding.encode(id)?, EncodingTable::encode(Encoding::SPLITTER)?, st.sb_encode()?))
+                    }
+
+                    /// Create a new instance of this enum from a `scratchback`-encoded string.
+                    fn from_sb_encoded(numbers: &str) -> Option<Self> {
+                        use ::scratchback::encoding::{ Encoding };
+                        let encoding = Encoding::new();
+
+                        let n = encoding.decode(&numbers[0..2])?;
+                        let x = &numbers[2..numbers.len()];
+
+                        let res = match n.as_ref() {
+                            #(#mapped_en_items)*
+                            _ => {
+                                return None;
+                            }
+                        };
+                        Some(res)
+                    }
+                }
+            };
+
+            Ok(result.into())
+        }
+
         x => Err(Error::new_at_span(x.span(), "Not supported.")),
     }
 }

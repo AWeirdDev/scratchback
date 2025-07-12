@@ -364,6 +364,7 @@ dependencies = [
  "atoi",
  "futures-util",
  "itoa",
+ "scratchback-macros",
  "tokio-tungstenite",
 ]
 
@@ -373,7 +374,6 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "scratchback",
  "venial",
 ]
 

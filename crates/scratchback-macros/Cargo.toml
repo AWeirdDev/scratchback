@@ -9,5 +9,4 @@ proc-macro = true
 [dependencies]
 quote = "1.0.40"
 venial = "0.6.1"
-scratchback = { path = "../../" }
 proc-macro2 = "1.0.95"

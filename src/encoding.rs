@@ -1,3 +1,23 @@
+//! This module provides encoding and derive macros for cloud variables.
+//!
+//! Example:
+//! ```no_run
+//! #[derive(Debug, ScratchObject)]
+//! struct Person {
+//!     #[id(0)]
+//!     name: String,
+//! }
+//!
+//! let person = Person { name: "Walter White".to_string() };
+//! let encoded: String = person.sb_encode().unwrap();  // scratchback encode
+//! println!("{encoded:?}");
+//!
+//! let decoded = Person::from_sb_encoded(&encoded).unwrap();
+//! println!("{decoded:#?}");
+//! ```
+
+pub use scratchback_macros::ScratchObject;
+
 macro_rules! encoding_table {
     ($name:ident, [$(($idx:expr, $ch:expr)),* $(,)?]) => {
         /// An encoding table.
@@ -65,8 +85,8 @@ encoding_table!(EncodingTable, [
 pub struct Encoding();
 
 impl Encoding {
-    const SPLITTER: char = '•';
-    const SPLITTER_STR: &str = "•";
+    pub const SPLITTER: char = '•';
+    pub const SPLITTER_STR: &str = "•";
 
     /// Create a new encoder.
     pub const fn new() -> Self {

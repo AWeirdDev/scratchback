@@ -8,8 +8,9 @@ atoi = "2.0.0"
 futures-util = { version = "0.3.31", features = ["sink"] }
 itoa = "1.0.15"
 tokio-tungstenite = "0.27.0"
+scratchback-macros = { path = "crates/scratchback-macros" }
 
 [workspace]
 members = [
-    "crates/scratchback-macros"
+    "crates/scratchback-macros",
 ]
