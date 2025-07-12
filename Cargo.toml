@@ -1,0 +1,15 @@
+[package]
+name = "scratchback"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+atoi = "2.0.0"
+futures-util = { version = "0.3.31", features = ["sink"] }
+itoa = "1.0.15"
+tokio-tungstenite = "0.27.0"
+
+[workspace]
+members = [
+    "crates/scratchback-macros"
+]
