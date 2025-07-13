@@ -154,8 +154,7 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
                     /// Create a new instance of this struct from a `scratchback`-encoded string.
                     fn from_sb_encoded(numbers: &str) -> Option<Self> {
                         use ::scratchback::encoding::{ SbStringTo, Encoding };
-                        let encoding = Encoding::new();
-                        let mut arr = encoding.decode_items_to_array::<#items_n>(numbers)?;
+                        let mut arr = Encoding::decode_items_to_array::<#items_n>(numbers)?;
                         #( #mapped_de_items )*
 
                         Some(Self {
@@ -165,7 +164,6 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
                     /// Serialize this struct instance to a `scratchback`-encoded string.
                     fn sb_encode(self) -> Option<String> {
                         use ::scratchback::encoding::{ SbToString, Encoding };
-                        let encoding = Encoding::new();
                         
                         let Self { #(#field_names, )* } = self;
                         #(
@@ -173,7 +171,7 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
                             let #field_names = s.as_str();
                         )*
                         let d = [#(#field_names, )*];
-                        encoding.encode_items(&d)
+                        Encoding::encode_items(&d)
                     }
                 }
             };
@@ -249,21 +247,18 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
                     fn sb_encode(self) -> Option<String> {
                         use ::scratchback::encoding::{ Encoding, EncodingTable };
 
-                        let encoding = Encoding::new();
-
                         let (st, id) = match self {
                             #(#mapped_de_items)*
                         };
 
-                        Some(format!("{}{}{}", encoding.encode(id)?, EncodingTable::encode(Encoding::SPLITTER)?, st.sb_encode()?))
+                        Some(format!("{}{}{}", Encoding::encode(id)?, EncodingTable::encode(Encoding::SPLITTER)?, st.sb_encode()?))
                     }
 
                     /// Create a new instance of this enum from a `scratchback`-encoded string.
                     fn from_sb_encoded(numbers: &str) -> Option<Self> {
                         use ::scratchback::encoding::{ Encoding };
-                        let encoding = Encoding::new();
 
-                        let n = encoding.decode(&numbers[0..2])?;
+                        let n = Encoding::decode(&numbers[0..2])?;
                         let x = &numbers[2..numbers.len()];
 
                         let res = match n.as_ref() {

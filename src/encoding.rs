@@ -82,18 +82,13 @@ encoding_table!(EncodingTable, [
 ]);
 
 /// Encoding for `scratchback`.
-pub struct Encoding();
+pub struct Encoding;
 
 impl Encoding {
     pub const SPLITTER: char = '•';
     pub const SPLITTER_STR: &str = "•";
 
-    /// Create a new encoder.
-    pub const fn new() -> Self {
-        Self()
-    }
-
-    pub fn encode(&self, input: &str) -> Option<String> {
+    pub fn encode(input: &str) -> Option<String> {
         let mut seq = EncodedSequence::new();
 
         for chr in input.chars() {
@@ -104,11 +99,11 @@ impl Encoding {
         Some(seq.get())
     }
 
-    pub fn encode_items(&self, items: &[&str]) -> Option<String> {
-        self.encode(&items.join(Self::SPLITTER_STR))
+    pub fn encode_items(items: &[&str]) -> Option<String> {
+        Self::encode(&items.join(Self::SPLITTER_STR))
     }
 
-    pub fn decode(&self, numbers: &str) -> Option<String> {
+    pub fn decode(numbers: &str) -> Option<String> {
         let mut decoded = String::new();
 
         if numbers.len() % 2 != 0 {
@@ -123,7 +118,7 @@ impl Encoding {
         Some(decoded)
     }
 
-    pub fn decode_items(&self, numbers: &str) -> Option<Vec<String>> {
+    pub fn decode_items(numbers: &str) -> Option<Vec<String>> {
         let mut decoded = Vec::new();
         let mut s = String::new();
 
@@ -147,8 +142,8 @@ impl Encoding {
         Some(decoded)
     }
 
-    pub fn decode_items_to_array<const N: usize>(&self, numbers: &str) -> Option<[String; N]> {
-        let mut vec = self.decode_items(numbers)?;
+    pub fn decode_items_to_array<const N: usize>(numbers: &str) -> Option<[String; N]> {
+        let mut vec = Self::decode_items(numbers)?;
 
         if vec.len() != N {
             return None;
