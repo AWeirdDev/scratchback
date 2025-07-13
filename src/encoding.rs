@@ -18,6 +18,11 @@
 
 pub use scratchback_macros::ScratchObject;
 
+pub trait ScratchObject where Self: Sized {
+    fn from_sb_encoded(numbers: &str) -> Option<Self>;
+    fn sb_encode(self) -> Option<String>;
+}
+
 macro_rules! encoding_table {
     ($name:ident, [$(($idx:expr, $ch:expr)),* $(,)?]) => {
         /// An encoding table.
@@ -87,6 +92,7 @@ pub struct Encoding;
 impl Encoding {
     pub const SPLITTER: char = '•';
     pub const SPLITTER_STR: &str = "•";
+    pub const SPLITTER_ENCODED: &str = "97";
 
     pub fn encode(input: &str) -> Option<String> {
         let mut seq = EncodedSequence::new();
@@ -141,19 +147,6 @@ impl Encoding {
 
         Some(decoded)
     }
-
-    pub fn decode_items_to_array<const N: usize>(numbers: &str) -> Option<[String; N]> {
-        let mut vec = Self::decode_items(numbers)?;
-
-        if vec.len() != N {
-            return None;
-        }
-
-        let ptr = vec.as_mut_ptr();
-        std::mem::forget(vec);
-
-        Some(unsafe { ptr.cast::<[String; N]>().read() })
-    }
 }
 
 pub struct EncodedSequence {
@@ -192,6 +185,16 @@ impl SbStringTo<String> for String {
     }
 }
 
+impl SbStringTo<bool> for String {
+    fn sb_string_to(&self) -> Option<bool> {
+        match self.as_str() {
+            "0" => Some(false),
+            "1" => Some(true),
+            _ => None,
+        }
+    }
+}
+
 macro_rules! impl_atoi_sbstringto {
     ($typ:ty) => {
         impl SbStringTo<$typ> for String {
@@ -218,6 +221,15 @@ pub trait SbToString {
 impl SbToString for String {
     fn sb_to_string(&self) -> String {
         self.clone()
+    }
+}
+
+impl SbToString for bool {
+    fn sb_to_string(&self) -> String {
+        match self {
+            true => "1".to_string(),
+            false => "0".to_string(),
+        }
     }
 }
 

@@ -26,13 +26,11 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
                 return Err(Error::new_at_span(st.fields.span(), "Expected named fields"));
             };
 
-            let mut flattens_to: Option<String> = None;
+            let mut flattens_to: Option<Ident> = None;
             let mut has_id = false;
             let mut map: HashMap<u8, Ident> = HashMap::new();
 
             for field in fields.fields.items() {
-                let field_name = field.name.to_string();
-
                 for attr in &field.attributes {
                     let name = &attr.path.last().unwrap().to_string();
                     if name != "id" {
@@ -120,7 +118,7 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
                                 );
                             }
 
-                            flattens_to = Some(field_name.clone());
+                            flattens_to = Some(field.name.clone());
                         }
                         _ => {
                             return Err(
@@ -140,21 +138,33 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
 
             let name = st.name;
             let mut field_names = Vec::new();
+            let mut max_id = 0_u8;
             let mapped_de_items = map.iter().map(|(k, v)| {
+                max_id = max_id.max(*k);
                 field_names.push(v);
                 quote! {
-                    let #v = std::mem::replace(&mut arr[#k as usize], String::new()).sb_string_to()?;
+                    let #v = mva__.take(#k as usize).unwrap().sb_string_to()?;
                 }
             });
             let items_n = mapped_de_items.len();
+            // let flatten_target = {
+            //     if let Some(t) = flattens_to {
+            //         quote! {
+            //         }
+            //     }
+            // };
 
             let result =
                 quote! {
-                impl #name {
+                impl ::scratchback::encoding::ScratchObject for #name {
                     /// Create a new instance of this struct from a `scratchback`-encoded string.
                     fn from_sb_encoded(numbers: &str) -> Option<Self> {
                         use ::scratchback::encoding::{ SbStringTo, Encoding };
-                        let mut arr = Encoding::decode_items_to_array::<#items_n>(numbers)?;
+                        use ::scratchback::moving;
+
+                        let Ok(mut mva__) = moving::nmovable::<_, #items_n>(Encoding::decode_items(numbers)?) else {
+                            return None;
+                        };
                         #( #mapped_de_items )*
 
                         Some(Self {
@@ -242,7 +252,7 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
 
             let result =
                 quote! {
-                impl #name {
+                impl ::scratchback::encoding::ScratchObject for #name {
                     /// Serialize this enum instance to a `scratchback`-encoded string.
                     fn sb_encode(self) -> Option<String> {
                         use ::scratchback::encoding::{ Encoding, EncodingTable };
@@ -256,10 +266,11 @@ fn derive(input: TokenStream) -> Result<TokenStream, Error> {
 
                     /// Create a new instance of this enum from a `scratchback`-encoded string.
                     fn from_sb_encoded(numbers: &str) -> Option<Self> {
-                        use ::scratchback::encoding::{ Encoding };
+                        use ::scratchback::encoding::{ Encoding, EncodingTable };
 
-                        let n = Encoding::decode(&numbers[0..2])?;
-                        let x = &numbers[2..numbers.len()];
+                        let split_loc = numbers.find(&Encoding::SPLITTER_ENCODED)?;
+                        let n = Encoding::decode(&numbers[0..split_loc])?;
+                        let x = &numbers[(split_loc + 2)..numbers.len()];
 
                         let res = match n.as_ref() {
                             #(#mapped_en_items)*

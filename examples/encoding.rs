@@ -1,16 +1,20 @@
-use scratchback::encoding::{ Encoding, ScratchObject };
+use scratchback::encoding::ScratchObject;
 
 #[derive(Debug, ScratchObject)]
-struct Person {
+struct Player {
     #[id(0)]
     name: String,
-}
 
-#[derive(Debug, ScratchObject)]
-enum Stuff {
-    #[id(10)] A(Person),
+    #[id(1)]
+    happy: bool,
 }
 
 fn main() {
-    
+    let player = Player {
+        name: "Walt".to_string(),
+        happy: true,
+    };
+    let encoded = player.sb_encode().unwrap();
+
+    println!("{:?}", Player::from_sb_encoded(&encoded));
 }
